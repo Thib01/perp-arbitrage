@@ -1,95 +1,4 @@
 import { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
-import PriceTable from '../components/PriceTable';
-import ArbitrageOpportunities from '../components/ArbitrageOpportunities';
-
-export default function Home() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [error, setError] = useState(null);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/prices');
-      if (!response.ok) {
-        throw new Error('Erreur lors du chargement des données');
-      }
-      
-      const result = await response.json();
-      setData(result);
-      setLastUpdate(new Date().toLocaleTimeString('fr-FR'));
-      
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    
-    // Actualisation automatique toutes les 30 secondes
-    const interval = setInterval(fetchData, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <Layout>
-      <div className="container">
-        <header className="header">
-          <div className="header-content">
-            <h1>🚀 Perp Arbitrage Tracker</h1>
-            <p className="header-subtitle">
-              Détection d'opportunités d'arbitrage en temps réel
-            </p>
-          </div>
-          <div className="controls">
-            <button 
-              onClick={fetchData} 
-              disabled={loading}
-              className="refresh-btn"
-            >
-              {loading ? '🔄 Actualisation...' : '🔄 Actualiser'}
-            </button>
-            {lastUpdate && (
-              <div className="last-update">
-                <span>⏰ Dernière MAJ: {lastUpdate}</span>
-              </div>
-            )}
-          </div>
-        </header>
-
-        {error && (
-          <div className="error-message">
-            ⚠️ {error}
-          </div>
-        )}
-
-        {data && (
-          <>
-            <ArbitrageOpportunities opportunities={data.arbitrageOpportunities} />
-            <PriceTable prices={data.prices} />
-          </>
-        )}
-
-        {loading && !data && (
-          <div className="loading-message">
-            <div className="loading-spinner"></div>
-            <p>Chargement des données...</p>
-          </div>
-        )}
-      </div>
-    </Layout>
-  );
-}
-import { useState, useEffect } from 'react';
 import { fetchAllPrices } from '../utils/exchanges';
 
 export default function Home() {
@@ -97,13 +6,13 @@ export default function Home() {
   const [filteredPrices, setFilteredPrices] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // ✅ NOUVEAU : État des filtres DEX
+  // État des filtres DEX
   const [selectedExchanges, setSelectedExchanges] = useState({
     'Paradex': true,
     'Backpack': true,
     'Aster': true,
-    'Vest': false,      // Désactivé par défaut (API manquante)
-    'Extended': false,  // Désactivé par défaut (API manquante)
+    'Vest': false,
+    'Extended': false,
     'Hyperliquid': false,
     'Orderly': false,
     'Hibachi': false,
@@ -121,7 +30,7 @@ export default function Home() {
     setLoading(false);
   };
 
-  // ✅ NOUVEAU : Filtrer les prix selon les DEX sélectionnés
+  // Filtrer les prix selon les DEX sélectionnés
   useEffect(() => {
     const filtered = prices.filter(price => selectedExchanges[price.exchange]);
     setFilteredPrices(filtered);
@@ -155,7 +64,7 @@ export default function Home() {
           🏦 PERPÉTUEL DEX ARBITRAGE SCANNER
         </h1>
 
-        {/* ✅ NOUVEAU : Panneau de filtres DEX */}
+        {/* Panneau de filtres DEX */}
         <div className="bg-gray-900 rounded-lg p-6 mb-8 border border-green-400">
           <h2 className="text-xl font-mono mb-4 text-green-300">📊 Filtres DEX</h2>
           <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -190,7 +99,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Statistiques modifiées pour utiliser filteredPrices */}
+        {/* Statistiques */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-gray-900 p-6 rounded-lg border border-green-400">
             <h2 className="text-lg font-mono text-green-300 mb-2">Total Markets</h2>
@@ -210,7 +119,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tableau modifié pour utiliser filteredPrices */}
+        {/* Tableau des prix */}
         <div className="bg-gray-900 rounded-lg overflow-hidden border border-green-400">
           <div className="overflow-x-auto">
             <table className="w-full">
