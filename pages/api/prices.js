@@ -8,16 +8,20 @@ export default async function handler(req, res) {
     const startTime = Date.now();
     
     // Liste des échanges avec APIs réelles et simulées
-    const exchanges = [
-      'binance',      // API réelle
-      'coingecko',    // API réelle 
-      'hyperliquid',  // API réelle
-      'orderly',      // Simulé
-      'backpack',     // Simulé
-      'paradex',      // Simulé
-      'vest',         // Simulé
-      'extended'      // Simulé
-    ];
+  const exchanges = [
+  'hyperliquid',  // API réelle
+  'orderly',      // API réelle  
+  'dydx',         // API réelle
+  'gmx',          // Simulé mais réaliste
+  'paradex',      // Simulé avec variation
+  'vest',         // Simulé avec variation
+  'extended',     // Simulé avec variation
+  'backpack',     // Simulé avec variation
+  'hibachi',      // Simulé avec variation
+  'aster',        // Simulé avec variation
+  'pacifica'      // Simulé avec variation
+];
+
 
     console.log('Fetching data from exchanges:', exchanges);
 
