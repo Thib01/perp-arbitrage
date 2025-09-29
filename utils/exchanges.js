@@ -1,19 +1,99 @@
-// utils/exchanges.js - Version temporaire avec données simulées réalistes
+// utils/exchanges.js - VRAIES APIs PERPÉTUELS DEX
 
-const exchangeAdapters = {
-  // Hyperliquid - API réelle qui fonctionne
-  hyperliquid: async () => {
+const exchanges = {
+  paradex: async () => {
     try {
-      const response = await fetch('https://api.hyperliquid.xyz/info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'allMids' })
-      });
+      const response = await fetch('https://api.prod.paradex.trade/v1/markets');
       const data = await response.json();
       
-      return Object.entries(data).slice(0, 15).map(([symbol, price]) => ({
-        symbol: symbol,
-        price: parseFloat(price),
+      return data.results.slice(0, 15).map(market => ({
+        symbol: market.symbol.replace('-PERP', '').replace('-USD', ''),
+        price: parseFloat(market.oracle_price_signed || market.mark_price),
+        exchange: 'Paradex',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Paradex API error:', error);
+      return [];
+    }
+  },
+
+  backpack: async () => {
+    try {
+      const response = await fetch('https://api.backpack.exchange/api/v1/tickers');
+      const data = await response.json();
+      
+      return Object.entries(data).slice(0, 15).map(([symbol, ticker]) => ({
+        symbol: symbol.replace('_USDC', '').replace('_USD', ''),
+        price: parseFloat(ticker.lastPrice),
+        exchange: 'Backpack',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Backpack API error:', error);
+      return [];
+    }
+  },
+
+  aster: async () => {
+    try {
+      const response = await fetch('https://fapi.asterdex.com/fapi/v1/ticker/price');
+      const data = await response.json();
+      
+      return data.slice(0, 15).map(ticker => ({
+        symbol: ticker.symbol.replace('USDT', '').replace('USDC', ''),
+        price: parseFloat(ticker.price),
+        exchange: 'Aster',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Aster API error:', error);
+      return [];
+    }
+  },
+
+  vest: async () => {
+    try {
+      const response = await fetch('VOTRE_API_VEST_ICI');
+      const data = await response.json();
+      
+      return data.slice(0, 15).map(ticker => ({
+        symbol: ticker.symbol,
+        price: parseFloat(ticker.price),
+        exchange: 'Vest',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Vest API error:', error);
+      return [];
+    }
+  },
+
+  extended: async () => {
+    try {
+      const response = await fetch('https://api.starknet.extended.exchange/api/v1/info/markets');
+      const data = await response.json();
+      
+      return data.slice(0, 15).map(ticker => ({
+        symbol: ticker.symbol,
+        price: parseFloat(ticker.price),
+        exchange: 'Extended',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Extended API error:', error);
+      return [];
+    }
+  },
+
+  hyperliquid: async () => {
+    try {
+      const response = await fetch('VOTRE_API_HYPERLIQUID_ICI');
+      const data = await response.json();
+      
+      return data.slice(0, 15).map(ticker => ({
+        symbol: ticker.symbol,
+        price: parseFloat(ticker.price),
         exchange: 'Hyperliquid',
         timestamp: Date.now()
       }));
@@ -23,15 +103,14 @@ const exchangeAdapters = {
     }
   },
 
-  // Orderly - API réelle qui fonctionne
   orderly: async () => {
     try {
-      const response = await fetch('https://api-evm.orderly.org/v1/public/futures');
+      const response = await fetch('VOTRE_API_ORDERLY_ICI');
       const data = await response.json();
       
-      return data.data.rows.slice(0, 15).map(item => ({
-        symbol: item.symbol.replace('_PERP', '').replace('_', '-'),
-        price: parseFloat(item.mark_price),
+      return data.slice(0, 15).map(ticker => ({
+        symbol: ticker.symbol,
+        price: parseFloat(ticker.price),
         exchange: 'Orderly',
         timestamp: Date.now()
       }));
@@ -41,54 +120,45 @@ const exchangeAdapters = {
     }
   },
 
-  // Backpack - API réelle qui fonctionne
-  backpack: async () => {
+  hibachi: async () => {
     try {
-      const response = await fetch('https://api.backpack.exchange/api/v1/tickers');
+      const response = await fetch('VOTRE_API_HIBACHI_ICI');
       const data = await response.json();
       
-      return Object.values(data)
-        .filter(ticker => ticker.symbol.includes('_USDC'))
-        .slice(0, 10)
-        .map(ticker => ({
-          symbol: ticker.symbol.replace('_USDC', ''),
-          price: parseFloat(ticker.lastPrice),
-          exchange: 'Backpack',
-          timestamp: Date.now()
-        }));
+      return data.slice(0, 15).map(ticker => ({
+        symbol: ticker.symbol,
+        price: parseFloat(ticker.price),
+        exchange: 'Hibachi',
+        timestamp: Date.now()
+      }));
     } catch (error) {
-      console.error('Backpack API error:', error);
+      console.error('Hibachi API error:', error);
       return [];
     }
   },
 
-  // Les autres en mode simulé temporaire (on cherchera les vraies APIs après)
-  paradex: () => generateSimulatedPrices('Paradex'),
-  vest: () => generateSimulatedPrices('Vest'),
-  extended: () => generateSimulatedPrices('Extended'),
-  hibachi: () => generateSimulatedPrices('Hibachi'),
-  aster: () => generateSimulatedPrices('Aster'),
-  pacifica: () => generateSimulatedPrices('Pacifica')
+  pacifica: async () => {
+    try {
+      const response = await fetch('VOTRE_API_PACIFICA_ICI');
+      const data = await response.json();
+      
+      return data.slice(0, 15).map(ticker => ({
+        symbol: ticker.symbol,
+        price: parseFloat(ticker.price),
+        exchange: 'Pacifica',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Pacifica API error:', error);
+      return [];
+    }
+  }
 };
 
-// Fonction pour générer des prix simulés réalistes
-function generateSimulatedPrices(exchangeName) {
-  const baseSymbols = ['BTC', 'ETH', 'SOL', 'AVAX', 'ARB'];
-  const basePrices = {
-    'BTC': 67000 + Math.random() * 2000,
-    'ETH': 2650 + Math.random() * 200, 
-    'SOL': 155 + Math.random() * 20,
-    'AVAX': 28 + Math.random() * 5,
-    'ARB': 0.95 + Math.random() * 0.3
-  };
-
-  return baseSymbols.map(symbol => ({
-    symbol,
-    price: basePrices[symbol] * (1 + (Math.random() - 0.5) * 0.02), // Variation ±1%
-    exchange: exchangeName,
-    timestamp: Date.now()
-  }));
+export async function fetchAllPrices() {
+  const exchangeNames = ['paradex', 'backpack', 'aster', 'vest', 'extended', 'hyperliquid', 'orderly', 'hibachi', 'pacifica'];
+  const promises = exchangeNames.map(name => exchanges[name]());
+  const results = await Promise.all(promises);
+  
+  return results.flat();
 }
-
-export { exchangeAdapters };
-export default exchangeAdapters;
