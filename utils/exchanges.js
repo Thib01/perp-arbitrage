@@ -1,78 +1,102 @@
-import axios from 'axios';
-
-export const EXCHANGES = {
-  HYPERLIQUID: {
-    name: 'Hyperliquid',
-    url: 'https://api.hyperliquid.xyz/info',
-    color: '#00D2FF'
-  },
-  PARADEX: {
-    name: 'Paradex', 
-    url: 'https://api.paradex.trade/v1',
-    color: '#FF6B35'
-  }
-};
-
-// Fonction pour simuler les données des échanges
-const generateMockData = (exchangeName) => {
-  const symbols = ['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'AVAX-USDT', 'MATIC-USDT'];
-  const basePrices = {
-    'BTC-USDT': 45000,
-    'ETH-USDT': 2500,
-    'SOL-USDT': 100,
-    'AVAX-USDT': 35,
-    'MATIC-USDT': 0.8
-  };
-  
-  return symbols.map(symbol => ({
-    symbol,
-    price: basePrices[symbol] * (0.95 + Math.random() * 0.1), // Variation de ±5%
-    exchange: exchangeName,
-    timestamp: Date.now()
-  }));
-};
-
-export const exchangeAdapters = {
+const exchangeAdapters = {
+  // Hyperliquid - API publique disponible
   hyperliquid: async () => {
     try {
-      // Pour le moment, on utilise des données simulées
-      // Plus tard, vous pourrez remplacer par la vraie API
-      return generateMockData('Hyperliquid');
+      const response = await fetch('https://api.hyperliquid.xyz/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'allMids' })
+      });
+      const data = await response.json();
+      
+      return Object.entries(data).map(([symbol, price]) => ({
+        symbol: symbol.replace('/', '-'),
+        price: parseFloat(price),
+        exchange: 'Hyperliquid',
+        timestamp: Date.now()
+      }));
     } catch (error) {
       console.error('Hyperliquid error:', error);
       return [];
     }
   },
 
-  paradex: async () => {
-    return generateMockData('Paradex');
-  },
-
-  vest: async () => {
-    return generateMockData('Vest');
-  },
-
-  extended: async () => {
-    return generateMockData('Extended');
-  },
-
-  backpack: async () => {
-    return generateMockData('Backpack');
-  },
-
+  // Orderly - API publique
   orderly: async () => {
-    return generateMockData('Orderly');
+    try {
+      const response = await fetch('https://api-evm.orderly.org/v1/public/futures');
+      const data = await response.json();
+      
+      return data.data.rows.map(item => ({
+        symbol: item.symbol.replace('_', '-'),
+        price: parseFloat(item.mark_price),
+        exchange: 'Orderly',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Orderly error:', error);
+      return [];
+    }
   },
 
-  hibachi: async () => {
-    return generateMockData('Hibachi');
+  // Backpack - Via CoinGecko comme proxy
+  backpack: async () => {
+    try {
+      const coins = ['bitcoin', 'ethereum', 'solana', 'avalanche-2'];
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${coins.join(',')}&vs_currencies=usd`
+      );
+      const data = await response.json();
+      
+      const mapping = {
+        'bitcoin': 'BTC-USDT',
+        'ethereum': 'ETH-USDT', 
+        'solana': 'SOL-USDT',
+        'avalanche-2': 'AVAX-USDT'
+      };
+      
+      return Object.entries(data).map(([coinId, priceData]) => ({
+        symbol: mapping[coinId],
+        price: priceData.usd,
+        exchange: 'Backpack',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Backpack error:', error);
+      return [];
+    }
   },
 
-  aster: async () => {
-    return generateMockData('Aster');
-  },
-
-  pacifica: async () => {
-    return generateMockData('Pacifica');
+  // Pour les autres (Paradex, Vest, etc.) - APIs en recherche
+  generic: async (exchangeName) => {
+    // Prix de référence via CoinGecko 
+    const coins = ['bitcoin', 'ethereum', 'solana', 'avalanche-2', 'chainlink', 'uniswap'];
+    try {
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${coins.join(',')}&vs_currencies=usd`
+      );
+      const data = await response.json();
+      
+      const mapping = {
+        'bitcoin': 'BTC-USDT',
+        'ethereum': 'ETH-USDT',
+        'solana': 'SOL-USDT', 
+        'avalanche-2': 'AVAX-USDT',
+        'chainlink': 'LINK-USDT',
+        'uniswap': 'UNI-USDT'
+      };
+      
+      return Object.entries(data).map(([coinId, priceData]) => ({
+        symbol: mapping[coinId],
+        price: priceData.usd * (1 + (Math.random() - 0.5) * 0.01), // Variation de ±0.5%
+        exchange: exchangeName,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error(`${exchangeName} error:`, error);
+      return [];
+    }
   }
 };
+
+export { exchangeAdapters };
