@@ -12,7 +12,7 @@ export default function Home() {
     'Backpack': true,
     'Aster': true,
     'Vest': false,
-    'Extended': true,
+    'Extended': false,
     'Hyperliquid': false,
     'Orderly': false,
     'Hibachi': false,
@@ -43,156 +43,188 @@ export default function Home() {
     }));
   };
 
-  // CORRECTION : Intervalle plus long pour éviter les sautillements
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000); // 30 secondes au lieu de 5
+    const interval = setInterval(fetchData, 15000); // 15 secondes
     return () => clearInterval(interval);
   }, []);
 
-  if (loading && prices.length === 0) { // CORRECTION : Afficher loading seulement au premier chargement
+  if (loading && prices.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-center mb-8">
-          Suivi des opportunités d'arbitrage perpétuels
-        </h1>
-        <div className="text-center">Chargement des données...</div>
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold text-center mb-8 text-gray-800">
+            📊 ARBITRAGE SCANNER - PERPÉTUELS
+          </h1>
+          <div className="text-center text-gray-600">⏳ Chargement des données...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">
-        Suivi des opportunités d'arbitrage perpétuels
-      </h1>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b-4 border-blue-500 rounded-t-lg p-4 mb-0">
+          <h1 className="text-2xl font-bold text-center text-gray-800">
+            📊 ARBITRAGE SCANNER - PERPÉTUELS
+          </h1>
+          <div className="text-center text-sm text-gray-600 mt-1">
+            ⚡ Détection d'opportunités en temps réel
+          </div>
+        </div>
 
-      {/* NOUVEAU : Panneau de filtres DEX */}
-      <div className="bg-white shadow rounded-lg p-6 mb-6 border">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">📊 Filtres DEX</h2>
-        <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
-          {Object.entries(selectedExchanges).map(([exchange, isSelected]) => (
-            <label key={exchange} className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => handleExchangeToggle(exchange)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span className={`text-sm ${isSelected ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
-                {exchange}
-              </span>
-            </label>
-          ))}
+        {/* Filtres compacts */}
+        <div className="bg-white border-l border-r border-gray-200 p-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <span className="font-semibold text-gray-700 text-sm">DEX:</span>
+            {Object.entries(selectedExchanges).map(([exchange, isSelected]) => (
+              <label key={exchange} className="flex items-center space-x-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => handleExchangeToggle(exchange)}
+                  className="w-3 h-3 text-blue-600"
+                />
+                <span className={`text-xs px-2 py-1 rounded ${
+                  isSelected 
+                    ? 'bg-blue-100 text-blue-800 font-medium' 
+                    : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {exchange}
+                </span>
+              </label>
+            ))}
+            <div className="ml-4 flex gap-2">
+              <button
+                onClick={() => setSelectedExchanges(Object.fromEntries(Object.keys(selectedExchanges).map(k => [k, true])))}
+                className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs"
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setSelectedExchanges(Object.fromEntries(Object.keys(selectedExchanges).map(k => [k, false])))}
+                className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs"
+              >
+                Aucun
+              </button>
+            </div>
+          </div>
         </div>
-        
-        <div className="mt-4 flex gap-4">
-          <button
-            onClick={() => setSelectedExchanges(Object.fromEntries(Object.keys(selectedExchanges).map(k => [k, true])))}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-          >
-            Tout sélectionner
-          </button>
-          <button
-            onClick={() => setSelectedExchanges(Object.fromEntries(Object.keys(selectedExchanges).map(k => [k, false])))}
-            className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm"
-          >
-            Tout désélectionner
-          </button>
-        </div>
-      </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white shadow rounded-lg p-6 border">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Markets</h2>
-          <p className="text-3xl font-bold text-blue-600">{filteredPrices.length}</p>
+        {/* Stats rapides */}
+        <div className="bg-white border-l border-r border-gray-200 px-4 py-2 flex justify-between items-center text-sm">
+          <div>
+            📈 <strong>{filteredPrices.length}</strong> paires actives
+          </div>
+          <div>
+            🔄 DEX sélectionnés: <strong>{Object.values(selectedExchanges).filter(Boolean).length}</strong>
+          </div>
+          <div className="flex items-center gap-2">
+            {loading && <span className="text-orange-600">⏳ Actualisation...</span>}
+            <button
+              onClick={fetchData}
+              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs"
+            >
+              🔄 Actualiser
+            </button>
+          </div>
         </div>
-        
-        <div className="bg-white shadow rounded-lg p-6 border">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">Active DEX</h2>
-          <p className="text-3xl font-bold text-green-600">
-            {Object.values(selectedExchanges).filter(Boolean).length}
-          </p>
-        </div>
-        
-        <div className="bg-white shadow rounded-lg p-6 border">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">
-            {loading ? "🔄 Mise à jour..." : "Dernière maj"}
-          </h2>
-          <p className="text-sm text-gray-600">{new Date().toLocaleTimeString()}</p>
-        </div>
-      </div>
 
-      {/* Tableau des prix */}
-      <div className="bg-white shadow overflow-hidden rounded-lg border">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Symbol
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price (USD)
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Exchange
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Update
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPrices.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
-                    {Object.values(selectedExchanges).every(v => !v) 
-                      ? "Aucun DEX sélectionné" 
-                      : "Aucune donnée disponible pour les DEX sélectionnés"}
-                  </td>
+        {/* TABLEAU STYLE EXCEL */}
+        <div className="bg-white shadow-sm rounded-b-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              {/* En-têtes */}
+              <thead>
+                <tr className="bg-gray-100 border-b border-gray-300">
+                  <th className="px-4 py-3 text-left font-bold text-gray-800 border-r border-gray-300">
+                    PAIRE
+                  </th>
+                  <th className="px-4 py-3 text-right font-bold text-gray-800 border-r border-gray-300">
+                    PRIX (USD)
+                  </th>
+                  <th className="px-4 py-3 text-center font-bold text-gray-800 border-r border-gray-300">
+                    DEX
+                  </th>
+                  <th className="px-4 py-3 text-center font-bold text-gray-800">
+                    DERNIÈRE MAJ
+                  </th>
                 </tr>
-              ) : (
-                filteredPrices.map((price, index) => (
-                  <tr key={`${price.exchange}-${price.symbol}-${index}`}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {price.symbol}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      ${price.price.toLocaleString('en-US', { 
-                        minimumFractionDigits: 2, 
-                        maximumFractionDigits: 6 
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {price.exchange}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
-                      {new Date(price.timestamp).toLocaleTimeString()}
+              </thead>
+
+              {/* Corps du tableau */}
+              <tbody>
+                {filteredPrices.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-8 text-center text-gray-500 bg-gray-50">
+                      {Object.values(selectedExchanges).every(v => !v) 
+                        ? "❌ Aucun DEX sélectionné" 
+                        : "⚠️ Aucune donnée disponible"}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ) : (
+                  filteredPrices.map((price, index) => (
+                    <tr 
+                      key={`${price.exchange}-${price.symbol}-${index}`}
+                      className={`border-b border-gray-200 hover:bg-blue-50 ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                      }`}
+                    >
+                      {/* Paire */}
+                      <td className="px-4 py-3 border-r border-gray-200">
+                        <span className="font-bold text-gray-900 text-sm">
+                          {price.symbol}
+                        </span>
+                      </td>
 
-      <div className="mt-6 text-center">
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className={`px-6 py-2 rounded-lg font-medium ${
-            loading 
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
-          }`}
-        >
-          {loading ? '🔄 Actualisation...' : '🔄 Actualiser les prix'}
-        </button>
+                      {/* Prix */}
+                      <td className="px-4 py-3 text-right border-r border-gray-200">
+                        <span className="font-mono text-green-700 font-semibold">
+                          ${price.price.toLocaleString('en-US', { 
+                            minimumFractionDigits: 2, 
+                            maximumFractionDigits: 8 
+                          })}
+                        </span>
+                      </td>
+
+                      {/* DEX */}
+                      <td className="px-4 py-3 text-center border-r border-gray-200">
+                        <span className={`inline-block px-2 py-1 text-xs font-bold rounded-full ${
+                          price.exchange === 'Paradex' ? 'bg-purple-100 text-purple-800' :
+                          price.exchange === 'Backpack' ? 'bg-blue-100 text-blue-800' :
+                          price.exchange === 'Aster' ? 'bg-orange-100 text-orange-800' :
+                          price.exchange === 'Hyperliquid' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {price.exchange}
+                        </span>
+                      </td>
+
+                      {/* Timestamp */}
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-xs text-gray-600 font-mono">
+                          {new Date(price.timestamp).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center text-xs text-gray-500 mt-4">
+          🚀 Mise à jour automatique toutes les 15 secondes | 
+          💡 Survolez les lignes pour les mettre en évidence
+        </div>
       </div>
     </div>
   );
