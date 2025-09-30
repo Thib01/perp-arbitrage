@@ -1,283 +1,235 @@
+// pages/index.js - VERSION FINALE PROPRE
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 
 export default function Home() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
-  const exchanges = [
-    { name: 'Aster', url: 'https://fapi.asterdex.com/fapi/v1/ticker/price', working: true },
-    { name: 'Backpack', url: 'https://api.backpack.exchange/api/v1/tickers', working: true },
-    { name: 'Paradex', url: 'https://api.prod.paradex.trade/v1/markets', working: true },
-    { name: 'dYdX', url: '', working: false },
-    { name: 'Hyperliquid', url: '', working: false },
-    { name: 'Drift', url: '', working: false },
-    { name: 'Jupiter Perp', url: '', working: false },
-    { name: 'Apex Pro', url: '', working: false },
-    { name: 'Orderly', url: '', working: false }
-  ];
+  const [selectedExchanges, setSelectedExchanges] = useState({
+    aster: true,
+    hyperliquid: true,
+    orderly: true,
+    backpack: true,
+    paradex: false,
+    vest: false,
+    extended: false,
+    hibachi: false,
+    pacifica: false
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    const results = [];
-
-    // Fetch Aster data
-    try {
-      const asterResponse = await fetch('https://fapi.asterdex.com/fapi/v1/ticker/price');
-      const asterData = await asterResponse.json();
-      asterData.forEach(item => {
-        if (item.symbol && item.price) {
-          results.push({
-            pair: item.symbol,
-            aster: parseFloat(item.price).toFixed(4),
-            backpack: '-',
-            paradex: '-',
-            dydx: '-',
-            hyperliquid: '-',
-            drift: '-',
-            jupiter: '-',
-            apex: '-',
-            orderly: '-'
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Aster API Error:', error);
-    }
-
-    // Fetch Backpack data
-    try {
-      const backpackResponse = await fetch('https://api.backpack.exchange/api/v1/tickers');
-      const backpackData = await backpackResponse.json();
-      Object.keys(backpackData).forEach(symbol => {
-        const existingIndex = results.findIndex(r => r.pair === symbol);
-        const price = parseFloat(backpackData[symbol].lastPrice).toFixed(4);
-        
-        if (existingIndex >= 0) {
-          results[existingIndex].backpack = price;
-        } else {
-          results.push({
-            pair: symbol,
-            aster: '-',
-            backpack: price,
-            paradex: '-',
-            dydx: '-',
-            hyperliquid: '-',
-            drift: '-',
-            jupiter: '-',
-            apex: '-',
-            orderly: '-'
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Backpack API Error:', error);
-    }
-
-    // Fetch Paradex data
-    try {
-      const paradexResponse = await fetch('https://api.prod.paradex.trade/v1/markets');
-      const paradexData = await paradexResponse.json();
-      paradexData.results?.forEach(item => {
-        const existingIndex = results.findIndex(r => r.pair === item.symbol);
-        const price = parseFloat(item.oracle_price_usd || item.mark_price || 0).toFixed(4);
-        
-        if (existingIndex >= 0) {
-          results[existingIndex].paradex = price;
-        } else {
-          results.push({
-            pair: item.symbol,
-            aster: '-',
-            backpack: '-',
-            paradex: price,
-            dydx: '-',
-            hyperliquid: '-',
-            drift: '-',
-            jupiter: '-',
-            apex: '-',
-            orderly: '-'
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Paradex API Error:', error);
-    }
-
-    setData(results);
-    setLastUpdate(new Date());
-    setLoading(false);
+  const exchanges = {
+    aster: { name: 'Aster', logo: '🚀', status: '✅', color: '#00ff88' },
+    hyperliquid: { name: 'Hyperliquid', logo: '💧', status: '✅', color: '#00ff88' },
+    orderly: { name: 'Orderly', logo: '📊', status: '✅', color: '#00ff88' },
+    backpack: { name: 'Backpack', logo: '🎒', status: '✅', color: '#00ff88' },
+    paradex: { name: 'Paradex', logo: '🏛️', status: '⚠️', color: '#ffaa00' },
+    vest: { name: 'Vest', logo: '👔', status: '❌', color: '#ff6b6b' },
+    extended: { name: 'Extended', logo: '📈', status: '❌', color: '#ff6b6b' },
+    hibachi: { name: 'Hibachi', logo: '🔥', status: '❌', color: '#ff6b6b' },
+    pacifica: { name: 'Pacifica', logo: '🌊', status: '❌', color: '#ff6b6b' }
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000); // Update every 10 seconds
-    return () => clearInterval(interval);
+    setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (mounted) {
+      fetchData();
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [mounted, selectedExchanges]);
+
+  // 🎯 CALCUL CORRECT DES EXCHANGES ACTIFS
+  const activeExchanges = Object.entries(selectedExchanges)
+    .filter(([exchange, selected]) => selected)
+    .map(([exchange]) => exchange);
+
+  const fetchData = async () => {
+    if (activeExchanges.length === 0) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/prices?exchanges=${activeExchanges.join(',')}`);
+      const result = await response.json();
+
+      console.log('🔍 FULL DEBUG:');
+      console.log('📊 selectedExchanges:', selectedExchanges);
+      console.log('📊 activeExchanges:', activeExchanges);
+      console.log('📊 result length:', result.length);
+      console.log('📊 result[0]:', result[0]);
+      console.log('📊 Object.keys(result[0]):', Object.keys(result[0] || {}));
+      console.log('🔍 FULL DEBUG:');
+console.log('📊 selectedExchanges:', selectedExchanges);
+console.log('📊 activeExchanges:', activeExchanges);
+console.log('📊 result length:', result.length);
+console.log('📊 result[0]:', result[0]);
+console.log('📊 Object.keys(result[0]):', Object.keys(result[0] || {}));
+
+      activeExchanges.forEach(exchange => {
+        console.log(`🎯 ${exchange} dans result[0]:`, result[0]?.[exchange]);
+      });
+
+      setData(result);
+      setLastUpdate(new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error('Erreur lors du fetch:', error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateSpread = (row) => {
-    const prices = [row.aster, row.backpack, row.paradex]
-      .filter(p => p !== '-')
-      .map(p => parseFloat(p))
-      .filter(p => !isNaN(p));
-    
+    const prices = activeExchanges
+      .map(exchange => row[exchange])
+      .filter(price => price !== '-' && price !== undefined && price !== null)
+      .map(price => parseFloat(price))
+      .filter(price => !isNaN(price) && price > 0);
+
     if (prices.length < 2) return '-';
-    
+
     const min = Math.min(...prices);
     const max = Math.max(...prices);
-    const spread = ((max - min) / min * 100).toFixed(2);
+    const spread = ((max - min) / min * 100);
     
-    return spread + '%';
+    return spread > 0.01 ? `${spread.toFixed(2)}%` : '<0.01%';
   };
+
+  const toggleExchange = (exchangeKey) => {
+    setSelectedExchanges(prev => ({
+      ...prev,
+      [exchangeKey]: !prev[exchangeKey]
+    }));
+  };
+
+  if (!mounted) {
+    return <div style={{ background: '#000', color: '#fff', minHeight: '100vh', padding: '20px' }}>Chargement...</div>;
+  }
 
   return (
     <>
       <Head>
-        <title>Arbitrage Scanner - Perpetuels</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>DEX Price Monitor 🚀</title>
+        <meta name="description" content="Monitoring des prix sur les DEX" />
+        <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <div style={{ 
-        fontFamily: 'monospace',
-        backgroundColor: '#1a1a1a',
-        color: '#ffffff',
-        minHeight: '100vh',
-        padding: '20px'
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)', 
+        minHeight: '100vh', 
+        padding: '20px',
+        fontFamily: 'monospace'
       }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-          borderBottom: '2px solid #333',
-          paddingBottom: '15px'
-        }}>
-          <h1 style={{ margin: 0, color: '#00ff88' }}>
-            🔍 ARBITRAGE SCANNER - PERPETUELS
+        {/* HEADER */}
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h1 style={{ color: '#00ff88', fontSize: '2.5em', margin: '0', textShadow: '0 0 20px #00ff88' }}>
+            🚀 DEX PRICE MONITOR
           </h1>
-          <div>
-            <button 
-              onClick={fetchData}
-              disabled={loading}
+          <p style={{ color: '#888', marginTop: '10px' }}>
+            {loading ? '⏳ Chargement...' : `✅ Dernière MAJ: ${lastUpdate || 'Jamais'}`}
+          </p>
+        </div>
+
+        {/* SÉLECTEURS D'EXCHANGES */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '15px', 
+          marginBottom: '30px',
+          maxWidth: '1200px',
+          margin: '0 auto 30px auto'
+        }}>
+          {Object.entries(exchanges).map(([key, exchange]) => (
+            <button
+              key={key}
+              onClick={() => toggleExchange(key)}
               style={{
-                backgroundColor: '#00ff88',
-                color: '#000',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '5px',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                padding: '12px 20px',
+                backgroundColor: selectedExchanges[key] ? exchange.color : '#2a2a2a',
+                color: selectedExchanges[key] ? '#000' : '#fff',
+                border: `2px solid ${exchange.color}`,
+                borderRadius: '8px',
+                cursor: exchange.status === '❌' ? 'not-allowed' : 'pointer',
+                opacity: exchange.status === '❌' ? 0.5 : 1,
+                transition: 'all 0.3s ease',
                 fontWeight: 'bold',
-                marginRight: '10px'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
               }}
+              disabled={exchange.status === '❌'}
             >
-              {loading ? '🔄 Chargement...' : '🔄 Actualiser'}
+              <span>{exchange.logo} {exchange.name}</span>
+              <span style={{ fontSize: '0.8em' }}>{exchange.status}</span>
             </button>
-            <span style={{ fontSize: '12px', color: '#888' }}>
-              Dernière MAJ: {lastUpdate.toLocaleTimeString()}
-            </span>
-          </div>
+          ))}
         </div>
 
-        {/* Status des APIs */}
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ color: '#00ff88', marginBottom: '10px' }}>📊 Status des APIs:</h3>
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-            {exchanges.map(exchange => (
-              <span key={exchange.name} style={{
-                padding: '5px 10px',
-                borderRadius: '15px',
-                fontSize: '12px',
-                backgroundColor: exchange.working ? '#004d00' : '#4d0000',
-                color: exchange.working ? '#00ff88' : '#ff4444'
-              }}>
-                {exchange.working ? '✅' : '❌'} {exchange.name}
-              </span>
-            ))}
+        {/* DEBUG MODE - REMPLACEZ LE TABLEAU PAR CECI TEMPORAIREMENT */}
+        <div style={{ overflowX: 'auto', backgroundColor: '#1a1a1a', borderRadius: '8px', padding: '20px' }}>
+          <h2 style={{ color: '#00ff88', marginBottom: '20px' }}>🔍 DEBUG MODE</h2>
+          
+          <div style={{ color: '#fff', marginBottom: '20px' }}>
+            <p><strong>selectedExchanges:</strong> {JSON.stringify(selectedExchanges)}</p>
+            <p><strong>activeExchanges:</strong> {JSON.stringify(activeExchanges)}</p>
+            <p><strong>data.length:</strong> {data.length}</p>
+            <p><strong>loading:</strong> {loading.toString()}</p>
           </div>
-        </div>
 
-        {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            backgroundColor: '#2a2a2a',
-            border: '1px solid #444'
-          }}>
+          {data.length > 0 && (
+            <div style={{ color: '#fff' }}>
+              <h3>Premier élément des données :</h3>
+              <pre style={{ backgroundColor: '#000', padding: '10px', overflow: 'auto' }}>
+                {JSON.stringify(data[0], null, 2)}
+              </pre>
+              
+              <h3>Colonnes détectées :</h3>
+              <p>{Object.keys(data[0]).join(', ')}</p>
+              
+              <h3>Test des valeurs :</h3>
+              {activeExchanges.map(exchange => (
+                <p key={exchange}>{exchange}: {data[0][exchange] || 'UNDEFINED'}</p>
+              ))}
+            </div>
+          )}
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
             <thead>
-              <tr style={{ backgroundColor: '#333' }}>
-                <th style={headerStyle}>PAIRE</th>
-                <th style={headerStyle}>ASTER</th>
-                <th style={headerStyle}>BACKPACK</th>
-                <th style={headerStyle}>PARADEX</th>
-                <th style={headerStyle}>dYdX</th>
-                <th style={headerStyle}>HYPERLIQUID</th>
-                <th style={headerStyle}>DRIFT</th>
-                <th style={headerStyle}>JUPITER</th>
-                <th style={headerStyle}>APEX PRO</th>
-                <th style={headerStyle}>ORDERLY</th>
-                <th style={headerStyle}>SPREAD MAX</th>
+              <tr>
+                <th style={{ padding: '10px', border: '1px solid #333', color: '#00ff88' }}>Paire</th>
+                {activeExchanges.map(exchange => (
+                  <th key={exchange} style={{ padding: '10px', border: '1px solid #333', color: '#fff' }}>
+                    {exchange}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {data.length > 0 ? data.map((row, index) => (
-                <tr key={index} style={{
-                  backgroundColor: index % 2 === 0 ? '#2a2a2a' : '#333',
-                  borderBottom: '1px solid #444'
-                }}>
-                  <td style={cellStyle}><strong>{row.pair}</strong></td>
-                  <td style={cellStyle}>{row.aster}</td>
-                  <td style={cellStyle}>{row.backpack}</td>
-                  <td style={cellStyle}>{row.paradex}</td>
-                  <td style={cellStyle}>-</td>
-                  <td style={cellStyle}>-</td>
-                  <td style={cellStyle}>-</td>
-                  <td style={cellStyle}>-</td>
-                  <td style={cellStyle}>-</td>
-                  <td style={cellStyle}>-</td>
-                  <td style={{...cellStyle, color: '#00ff88', fontWeight: 'bold'}}>
-                    {calculateSpread(row)}
+              {data.slice(0, 5).map((row, index) => (
+                <tr key={index}>
+                  <td style={{ padding: '10px', border: '1px solid #333', color: '#00ff88' }}>
+                    {row.pair}
                   </td>
+                  {activeExchanges.map(exchange => (
+                    <td key={exchange} style={{ padding: '10px', border: '1px solid #333', color: '#fff' }}>
+                      {row[exchange] || 'NULL'}
+                    </td>
+                  ))}
                 </tr>
-              )) : (
-                <tr>
-                  <td colSpan="11" style={{...cellStyle, textAlign: 'center', color: '#888'}}>
-                    {loading ? '🔄 Chargement des données...' : '❌ Aucune donnée disponible'}
-                  </td>
-                </tr>
-              )}
+              ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Footer */}
-        <div style={{ 
-          marginTop: '20px', 
-          textAlign: 'center', 
-          color: '#888', 
-          fontSize: '12px' 
-        }}>
-          ⚡ Actualisation automatique toutes les 10 secondes • 
-          🎯 Scanner d'arbitrage en temps réel
         </div>
       </div>
     </>
   );
 }
-
-const headerStyle = {
-  padding: '12px 8px',
-  textAlign: 'left',
-  borderRight: '1px solid #555',
-  color: '#00ff88',
-  fontSize: '12px',
-  fontWeight: 'bold'
-};
-
-const cellStyle = {
-  padding: '8px',
-  borderRight: '1px solid #555',
-  fontSize: '11px',
-  color: '#ffffff'
-};
