@@ -1,231 +1,283 @@
 import { useState, useEffect } from 'react';
-import { fetchAllPrices } from '../utils/exchanges';
+import Head from 'next/head';
 
 export default function Home() {
-  const [prices, setPrices] = useState([]);
-  const [filteredPrices, setFilteredPrices] = useState([]);
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // État des filtres DEX
-  const [selectedExchanges, setSelectedExchanges] = useState({
-    'Paradex': true,
-    'Backpack': true,
-    'Aster': true,
-    'Vest': false,
-    'Extended': false,
-    'Hyperliquid': false,
-    'Orderly': false,
-    'Hibachi': false,
-    'Pacifica': false
-  });
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+
+  const exchanges = [
+    { name: 'Aster', url: 'https://fapi.asterdex.com/fapi/v1/ticker/price', working: true },
+    { name: 'Backpack', url: 'https://api.backpack.exchange/api/v1/tickers', working: true },
+    { name: 'Paradex', url: 'https://api.prod.paradex.trade/v1/markets', working: true },
+    { name: 'dYdX', url: '', working: false },
+    { name: 'Hyperliquid', url: '', working: false },
+    { name: 'Drift', url: '', working: false },
+    { name: 'Jupiter Perp', url: '', working: false },
+    { name: 'Apex Pro', url: '', working: false },
+    { name: 'Orderly', url: '', working: false }
+  ];
 
   const fetchData = async () => {
     setLoading(true);
+    const results = [];
+
+    // Fetch Aster data
     try {
-      const data = await fetchAllPrices();
-      setPrices(data);
+      const asterResponse = await fetch('https://fapi.asterdex.com/fapi/v1/ticker/price');
+      const asterData = await asterResponse.json();
+      asterData.forEach(item => {
+        if (item.symbol && item.price) {
+          results.push({
+            pair: item.symbol,
+            aster: parseFloat(item.price).toFixed(4),
+            backpack: '-',
+            paradex: '-',
+            dydx: '-',
+            hyperliquid: '-',
+            drift: '-',
+            jupiter: '-',
+            apex: '-',
+            orderly: '-'
+          });
+        }
+      });
     } catch (error) {
-      console.error('Error fetching prices:', error);
+      console.error('Aster API Error:', error);
     }
+
+    // Fetch Backpack data
+    try {
+      const backpackResponse = await fetch('https://api.backpack.exchange/api/v1/tickers');
+      const backpackData = await backpackResponse.json();
+      Object.keys(backpackData).forEach(symbol => {
+        const existingIndex = results.findIndex(r => r.pair === symbol);
+        const price = parseFloat(backpackData[symbol].lastPrice).toFixed(4);
+        
+        if (existingIndex >= 0) {
+          results[existingIndex].backpack = price;
+        } else {
+          results.push({
+            pair: symbol,
+            aster: '-',
+            backpack: price,
+            paradex: '-',
+            dydx: '-',
+            hyperliquid: '-',
+            drift: '-',
+            jupiter: '-',
+            apex: '-',
+            orderly: '-'
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Backpack API Error:', error);
+    }
+
+    // Fetch Paradex data
+    try {
+      const paradexResponse = await fetch('https://api.prod.paradex.trade/v1/markets');
+      const paradexData = await paradexResponse.json();
+      paradexData.results?.forEach(item => {
+        const existingIndex = results.findIndex(r => r.pair === item.symbol);
+        const price = parseFloat(item.oracle_price_usd || item.mark_price || 0).toFixed(4);
+        
+        if (existingIndex >= 0) {
+          results[existingIndex].paradex = price;
+        } else {
+          results.push({
+            pair: item.symbol,
+            aster: '-',
+            backpack: '-',
+            paradex: price,
+            dydx: '-',
+            hyperliquid: '-',
+            drift: '-',
+            jupiter: '-',
+            apex: '-',
+            orderly: '-'
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Paradex API Error:', error);
+    }
+
+    setData(results);
+    setLastUpdate(new Date());
     setLoading(false);
-  };
-
-  // Filtrer les prix selon les DEX sélectionnés
-  useEffect(() => {
-    const filtered = prices.filter(price => selectedExchanges[price.exchange]);
-    setFilteredPrices(filtered);
-  }, [prices, selectedExchanges]);
-
-  const handleExchangeToggle = (exchange) => {
-    setSelectedExchanges(prev => ({
-      ...prev,
-      [exchange]: !prev[exchange]
-    }));
   };
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000); // 15 secondes
+    const interval = setInterval(fetchData, 10000); // Update every 10 seconds
     return () => clearInterval(interval);
   }, []);
 
-  if (loading && prices.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold text-center mb-8 text-gray-800">
-            📊 ARBITRAGE SCANNER - PERPÉTUELS
-          </h1>
-          <div className="text-center text-gray-600">⏳ Chargement des données...</div>
-        </div>
-      </div>
-    );
-  }
+  const calculateSpread = (row) => {
+    const prices = [row.aster, row.backpack, row.paradex]
+      .filter(p => p !== '-')
+      .map(p => parseFloat(p))
+      .filter(p => !isNaN(p));
+    
+    if (prices.length < 2) return '-';
+    
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const spread = ((max - min) / min * 100).toFixed(2);
+    
+    return spread + '%';
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <Head>
+        <title>Arbitrage Scanner - Perpetuels</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+
+      <div style={{ 
+        fontFamily: 'monospace',
+        backgroundColor: '#1a1a1a',
+        color: '#ffffff',
+        minHeight: '100vh',
+        padding: '20px'
+      }}>
         {/* Header */}
-        <div className="bg-white shadow-sm border-b-4 border-blue-500 rounded-t-lg p-4 mb-0">
-          <h1 className="text-2xl font-bold text-center text-gray-800">
-            📊 ARBITRAGE SCANNER - PERPÉTUELS
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          borderBottom: '2px solid #333',
+          paddingBottom: '15px'
+        }}>
+          <h1 style={{ margin: 0, color: '#00ff88' }}>
+            🔍 ARBITRAGE SCANNER - PERPETUELS
           </h1>
-          <div className="text-center text-sm text-gray-600 mt-1">
-            ⚡ Détection d'opportunités en temps réel
-          </div>
-        </div>
-
-        {/* Filtres compacts */}
-        <div className="bg-white border-l border-r border-gray-200 p-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <span className="font-semibold text-gray-700 text-sm">DEX:</span>
-            {Object.entries(selectedExchanges).map(([exchange, isSelected]) => (
-              <label key={exchange} className="flex items-center space-x-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleExchangeToggle(exchange)}
-                  className="w-3 h-3 text-blue-600"
-                />
-                <span className={`text-xs px-2 py-1 rounded ${
-                  isSelected 
-                    ? 'bg-blue-100 text-blue-800 font-medium' 
-                    : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {exchange}
-                </span>
-              </label>
-            ))}
-            <div className="ml-4 flex gap-2">
-              <button
-                onClick={() => setSelectedExchanges(Object.fromEntries(Object.keys(selectedExchanges).map(k => [k, true])))}
-                className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs"
-              >
-                Tous
-              </button>
-              <button
-                onClick={() => setSelectedExchanges(Object.fromEntries(Object.keys(selectedExchanges).map(k => [k, false])))}
-                className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs"
-              >
-                Aucun
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats rapides */}
-        <div className="bg-white border-l border-r border-gray-200 px-4 py-2 flex justify-between items-center text-sm">
           <div>
-            📈 <strong>{filteredPrices.length}</strong> paires actives
-          </div>
-          <div>
-            🔄 DEX sélectionnés: <strong>{Object.values(selectedExchanges).filter(Boolean).length}</strong>
-          </div>
-          <div className="flex items-center gap-2">
-            {loading && <span className="text-orange-600">⏳ Actualisation...</span>}
-            <button
+            <button 
               onClick={fetchData}
-              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs"
+              disabled={loading}
+              style={{
+                backgroundColor: '#00ff88',
+                color: '#000',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: 'bold',
+                marginRight: '10px'
+              }}
             >
-              🔄 Actualiser
+              {loading ? '🔄 Chargement...' : '🔄 Actualiser'}
             </button>
+            <span style={{ fontSize: '12px', color: '#888' }}>
+              Dernière MAJ: {lastUpdate.toLocaleTimeString()}
+            </span>
           </div>
         </div>
 
-        {/* TABLEAU STYLE EXCEL */}
-        <div className="bg-white shadow-sm rounded-b-lg border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              {/* En-têtes */}
-              <thead>
-                <tr className="bg-gray-100 border-b border-gray-300">
-                  <th className="px-4 py-3 text-left font-bold text-gray-800 border-r border-gray-300">
-                    PAIRE
-                  </th>
-                  <th className="px-4 py-3 text-right font-bold text-gray-800 border-r border-gray-300">
-                    PRIX (USD)
-                  </th>
-                  <th className="px-4 py-3 text-center font-bold text-gray-800 border-r border-gray-300">
-                    DEX
-                  </th>
-                  <th className="px-4 py-3 text-center font-bold text-gray-800">
-                    DERNIÈRE MAJ
-                  </th>
+        {/* Status des APIs */}
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ color: '#00ff88', marginBottom: '10px' }}>📊 Status des APIs:</h3>
+          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+            {exchanges.map(exchange => (
+              <span key={exchange.name} style={{
+                padding: '5px 10px',
+                borderRadius: '15px',
+                fontSize: '12px',
+                backgroundColor: exchange.working ? '#004d00' : '#4d0000',
+                color: exchange.working ? '#00ff88' : '#ff4444'
+              }}>
+                {exchange.working ? '✅' : '❌'} {exchange.name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            backgroundColor: '#2a2a2a',
+            border: '1px solid #444'
+          }}>
+            <thead>
+              <tr style={{ backgroundColor: '#333' }}>
+                <th style={headerStyle}>PAIRE</th>
+                <th style={headerStyle}>ASTER</th>
+                <th style={headerStyle}>BACKPACK</th>
+                <th style={headerStyle}>PARADEX</th>
+                <th style={headerStyle}>dYdX</th>
+                <th style={headerStyle}>HYPERLIQUID</th>
+                <th style={headerStyle}>DRIFT</th>
+                <th style={headerStyle}>JUPITER</th>
+                <th style={headerStyle}>APEX PRO</th>
+                <th style={headerStyle}>ORDERLY</th>
+                <th style={headerStyle}>SPREAD MAX</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.length > 0 ? data.map((row, index) => (
+                <tr key={index} style={{
+                  backgroundColor: index % 2 === 0 ? '#2a2a2a' : '#333',
+                  borderBottom: '1px solid #444'
+                }}>
+                  <td style={cellStyle}><strong>{row.pair}</strong></td>
+                  <td style={cellStyle}>{row.aster}</td>
+                  <td style={cellStyle}>{row.backpack}</td>
+                  <td style={cellStyle}>{row.paradex}</td>
+                  <td style={cellStyle}>-</td>
+                  <td style={cellStyle}>-</td>
+                  <td style={cellStyle}>-</td>
+                  <td style={cellStyle}>-</td>
+                  <td style={cellStyle}>-</td>
+                  <td style={cellStyle}>-</td>
+                  <td style={{...cellStyle, color: '#00ff88', fontWeight: 'bold'}}>
+                    {calculateSpread(row)}
+                  </td>
                 </tr>
-              </thead>
-
-              {/* Corps du tableau */}
-              <tbody>
-                {filteredPrices.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="px-4 py-8 text-center text-gray-500 bg-gray-50">
-                      {Object.values(selectedExchanges).every(v => !v) 
-                        ? "❌ Aucun DEX sélectionné" 
-                        : "⚠️ Aucune donnée disponible"}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredPrices.map((price, index) => (
-                    <tr 
-                      key={`${price.exchange}-${price.symbol}-${index}`}
-                      className={`border-b border-gray-200 hover:bg-blue-50 ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                      }`}
-                    >
-                      {/* Paire */}
-                      <td className="px-4 py-3 border-r border-gray-200">
-                        <span className="font-bold text-gray-900 text-sm">
-                          {price.symbol}
-                        </span>
-                      </td>
-
-                      {/* Prix */}
-                      <td className="px-4 py-3 text-right border-r border-gray-200">
-                        <span className="font-mono text-green-700 font-semibold">
-                          ${price.price.toLocaleString('en-US', { 
-                            minimumFractionDigits: 2, 
-                            maximumFractionDigits: 8 
-                          })}
-                        </span>
-                      </td>
-
-                      {/* DEX */}
-                      <td className="px-4 py-3 text-center border-r border-gray-200">
-                        <span className={`inline-block px-2 py-1 text-xs font-bold rounded-full ${
-                          price.exchange === 'Paradex' ? 'bg-purple-100 text-purple-800' :
-                          price.exchange === 'Backpack' ? 'bg-blue-100 text-blue-800' :
-                          price.exchange === 'Aster' ? 'bg-orange-100 text-orange-800' :
-                          price.exchange === 'Hyperliquid' ? 'bg-green-100 text-green-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {price.exchange}
-                        </span>
-                      </td>
-
-                      {/* Timestamp */}
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-xs text-gray-600 font-mono">
-                          {new Date(price.timestamp).toLocaleTimeString('fr-FR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit'
-                          })}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+              )) : (
+                <tr>
+                  <td colSpan="11" style={{...cellStyle, textAlign: 'center', color: '#888'}}>
+                    {loading ? '🔄 Chargement des données...' : '❌ Aucune donnée disponible'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Footer info */}
-        <div className="text-center text-xs text-gray-500 mt-4">
-          🚀 Mise à jour automatique toutes les 15 secondes | 
-          💡 Survolez les lignes pour les mettre en évidence
+        {/* Footer */}
+        <div style={{ 
+          marginTop: '20px', 
+          textAlign: 'center', 
+          color: '#888', 
+          fontSize: '12px' 
+        }}>
+          ⚡ Actualisation automatique toutes les 10 secondes • 
+          🎯 Scanner d'arbitrage en temps réel
         </div>
       </div>
-    </div>
+    </>
   );
 }
+
+const headerStyle = {
+  padding: '12px 8px',
+  textAlign: 'left',
+  borderRight: '1px solid #555',
+  color: '#00ff88',
+  fontSize: '12px',
+  fontWeight: 'bold'
+};
+
+const cellStyle = {
+  padding: '8px',
+  borderRight: '1px solid #555',
+  fontSize: '11px',
+  color: '#ffffff'
+};
